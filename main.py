@@ -169,14 +169,12 @@ def run_bot():
     async def on_message(msg):
         # only respond to @ mentions
         if msg.author == bot.user or not msg.clean_content.startswith(f"@{bot.user.name}"):
-            print(f"Received Message {msg.content.lower()}")
             return
         # only support text channels for now
         if msg.channel.type != discord.ChannelType.text:
             await msg.channel.send(f"Σ(°Д°) {bot.user.name} only supports text channels for now.")
             return
         try:
-            #print(f"Received Message {msg.content.lower()}")
             msg_content = msg.content.lower()
             if "help" in msg_content:
                 # send help text
