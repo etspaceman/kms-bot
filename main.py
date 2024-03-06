@@ -134,8 +134,7 @@ def get_formatted_duration(dtime):
 
 def run_bot():
     intents = discord.Intents.default()
-    # intents.guild_messages = True
-    # intents.messages = True
+    intents.message_content = True
     bot = discord.Client(intents = intents, 
                        proxy = PROXY)  
     @bot.event
@@ -169,13 +168,15 @@ def run_bot():
     @bot.event
     async def on_message(msg):
         # only respond to @ mentions
-        if msg.author == bot.user or not bot.user.mentioned_in(msg):
+        if msg.author == bot.user or not msg.clean_content.startswith(f"@{bot.user.name}"):
+            print(f"Received Message {msg.content.lower()}")
             return
         # only support text channels for now
         if msg.channel.type != discord.ChannelType.text:
             await msg.channel.send(f"Σ(°Д°) {bot.user.name} only supports text channels for now.")
             return
         try:
+            #print(f"Received Message {msg.content.lower()}")
             msg_content = msg.content.lower()
             if "help" in msg_content:
                 # send help text
