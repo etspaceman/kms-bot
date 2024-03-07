@@ -15,6 +15,7 @@ load_dotenv()
 # for production #
 PROXY = None
 DISCORD_KEY = os.getenv("DISCORD_KEY")
+DISCORD_ROLE_ID = os.getenv("DISCORD_ROLE_ID")
 
 PURGE_INTERVAL = 33 # in seconds
 MAX_DURATION = timedelta(days = 3333)
@@ -132,6 +133,8 @@ def get_formatted_duration(dtime):
     else:
         return str(seconds) + " seconds" if seconds > 1 else str(seconds) + " second"
 
+
+
 def run_bot():
     intents = discord.Intents.default()
     intents.message_content = True
@@ -168,67 +171,68 @@ def run_bot():
     @bot.event
     async def on_message(msg):
         # only respond to @ mentions
-        if msg.author == bot.user or not msg.clean_content.startswith(f"@{bot.user.name}"):
-            return
-        # only support text channels for now
-        if msg.channel.type != discord.ChannelType.text:
-            await msg.channel.send(f"Σ(°Д°) {bot.user.name} only supports text channels for now.")
-            return
-        try:
-            msg_content = msg.content.lower()
-            if "help" in msg_content:
-                # send help text
-                await msg.channel.send(f"""
+        if msg.role_mentions:
+            if msg.author == bot.user or not str(msg.role_mentions[0].id) == DISCORD_ROLE_ID:
+                return
+            # only support text channels for now
+            if msg.channel.type != discord.ChannelType.text:
+                await msg.channel.send(f"Σ(°Д°) {bot.user.name} only supports text channels for now.")
+                return
+            try:
+                msg_content = msg.content.lower()
+                if "help" in msg_content:
+                    # send help text
+                    await msg.channel.send(f"""
 HOW TO KMS
                         
 purge old messages:           
-<@{bot.user.id}> 30s
-<@{bot.user.id}> 5m
-<@{bot.user.id}> 24h
-<@{bot.user.id}> 2d
+<@&{msg.role_mentions[0].id}> 30s
+<@&{msg.role_mentions[0].id}> 5m
+<@&{msg.role_mentions[0].id}> 24h
+<@&{msg.role_mentions[0].id}> 2d
 or any custom duration
 
 stop purge task: 
-<@{bot.user.id}> stop
+<@&{msg.role_mentions[0].id}> stop
                         
 get help:
-<@{bot.user.id}> help
+<@&{msg.role_mentions[0].id}> help
                 """)
-            elif "stop" in msg_content:
-                # try stop task
-                if msg.channel.id in active_tasks:
-                    stop_task(msg.channel.id)                 
-                    await delete_task_db(msg.channel.id) # remove from db
-                    del active_tasks[msg.channel.id] # remove from dict
-                    await msg.channel.send(f"{bot.user.name} stopped.")
-                else: 
-                    await msg.channel.send("nothing to stop in this channel.")
-            else: 
-                # try parse duration 
-                duration = re.search('\d+[smhd]', msg_content)
-                dtime = None
-                if not duration:
-                    # invalid input
-                    await msg.channel.send(f'Σ(°Д°) invalid input. type "<@{bot.user.id}> help" to see available commands.')
-                else: 
-                    duration = duration.group(0)
-                    num = re.search('\d+', duration)
-                    if "s" in duration:
-                        dtime = timedelta(seconds = int(num.group(0)))
-                    elif "m" in duration:
-                        dtime = timedelta(minutes = int(num.group(0)))
-                    elif "d" in duration:
-                        dtime = timedelta(days = int(num.group(0)))
+                elif "stop" in msg_content:
+                    # try stop task
+                    if msg.channel.id in active_tasks:
+                        stop_task(msg.channel.id)                 
+                        await delete_task_db(msg.channel.id) # remove from db
+                        del active_tasks[msg.channel.id] # remove from dict
+                        await msg.channel.send(f"{msg.role_mentions[0].name} stopped.")
                     else: 
-                        dtime = timedelta(hours = int(num.group(0)))
+                        await msg.channel.send("nothing to stop in this channel.")
+                else: 
+                    # try parse duration 
+                    duration = re.search('\d+[smhd]', msg_content)
+                    dtime = None
+                    if not duration:
+                        # invalid input
+                        await msg.channel.send(f'Σ(°Д°) invalid input. type "<@&{msg.role_mentions[0].id}> help" to see available commands.')
+                    else: 
+                        duration = duration.group(0)
+                        num = re.search('\d+', duration)
+                        if "s" in duration:
+                            dtime = timedelta(seconds = int(num.group(0)))
+                        elif "m" in duration:
+                            dtime = timedelta(minutes = int(num.group(0)))
+                        elif "d" in duration:
+                            dtime = timedelta(days = int(num.group(0)))
+                        else: 
+                            dtime = timedelta(hours = int(num.group(0)))
 
-                    # start / restart task in a channel
-                    await set_purge_task_loop(msg.channel, dtime)
-                    print(f"{datetime.utcnow()} updated purge task in guild {msg.guild}")
+                        # start / restart task in a channel
+                        await set_purge_task_loop(msg.channel, dtime)
+                        print(f"{datetime.utcnow()} updated purge task in guild {msg.guild}")
 
-        except Exception as e:
-            print(e)
-            await msg.channel.send(f"failed to kms: {e}")
+            except Exception as e:
+                print(e)
+                await msg.channel.send(f"failed to kms: {e}")
 
     bot.run(DISCORD_KEY)
 
